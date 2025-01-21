@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Buddhi Baba - Chatbot</title>
+  
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f6fa;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    #chat-container {
+      width: 110%;
+      max-width: 1050px;
+      height: 100%;
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #chat-header {
+      background-color: #0078ff;
+      color: white;
+      padding: 15px;
+      text-align: center;
+      font-size: 1.5em;
+      font-weight: bold;
+    }
+    #chat-box {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      background-color: #f0f0f0;
+      display: flex;
+      flex-direction: column;
+    }
+    .message {
+      max-width: 70%;
+      margin-bottom: 10px;
+      padding: 10px 15px;
+      border-radius: 20px;
+      line-height: 1.5;
+      font-size: 0.95em;
+    }
+    .user {
+      align-self: flex-end;
+      background-color: #0078ff;
+      color: white;
+    }
+    .bot {
+      align-self: flex-start;
+      background-color: #e1e1e1;
+      color: #333;
+    }
+    #chat-input-container {
+      display: flex;
+      padding: 10px;
+      background-color: #fff;
+      border-top: 1px solid #ddd;
+    }
+    #chat-input {
+      flex: 1;
+      padding: 10px;
+      font-size: 1em;
+      border: 1px solid #ddd;
+      border-radius: 20px;
+      outline: none;
+    }
+    #send-button {
+      background-color: #0078ff;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 20px;
+      font-size: 1em;
+      margin-left: 10px;
+      cursor: pointer;
+      outline: none;
+    }
+    #send-button:hover {
+      background-color: #005bb5;
+    }
+    #chart-container {
+      display: none;
+      width: 100%;
+      padding: 15px;
+    }
+    canvas {
+      max-width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="chat-container">
+    <div id="chat-header">Buddhi Baba</div>
+    <div id="chat-box" style="height: 400px;"></div>
+    <div id="chart-container">
+      <canvas id="chart"></canvas>
+    </div>
+    <div id="chat-input-container">
+      <input id="chat-input" type="text" placeholder="Type your question..." />
+      <button id="send-button">Send</button>
+    </div>
+  </div>
+
+  <script>
+  const chatBox = document.getElementById('chat-box');
+const chatInput = document.getElementById('chat-input');
+const sendButton = document.getElementById('send-button');
+const chartContainer = document.getElementById('chart-container');
+const chartCanvas = document.getElementById('chart');
+
+function addMessage(content, sender) {
+  const messageElement = document.createElement('div');
+  messageElement.classList.add('message', sender);
+  messageElement.textContent = content;
+  chatBox.appendChild(messageElement);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function displayChart(data) {
+  const labels = Object.keys(data);
+  const values = Object.values(data);
+
+  chartContainer.style.display = 'block';
+
+  new Chart(chartCanvas, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Data Analysis',
+          data: values,
+          backgroundColor: 'rgba(0, 120, 255, 0.5)',
+          borderColor: 'rgba(0, 120, 255, 1)',
+          borderWidth: 1,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+        },
+      },
+    },
+  });
+}
+
+async function processMessage(message) {
+  addMessage(message, 'user');
+  chatInput.value = '';
+
+  if (message.toLowerCase() === 'show data visualization') {
+    try {
+      const response = await axios.post('http://127.0.0.1:5000/visualize');
+      const base64Image = response.data.chart;
+
+      // Convert base64 image into an <img> element
+      const img = new Image();
+      img.src = `data:image/png;base64,${base64Image}`;
+      img.style.width = '100%';
+
+      chartContainer.style.display = 'block';
+      chartContainer.innerHTML = '';
+      chartContainer.appendChild(img);
+    } catch (error) {
+      console.error('Error generating visualization:', error);
+      addMessage("Failed to generate visualization. Please try again.", 'bot');
+    }
+    return;
+  }
+
+  try {
+    const response = await axios.post(
+      'http://127.0.0.1:5000/chat',
+      { message },
+      {
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+
+    const botResponse = response.data.reply || 'No response from AI.';
+    addMessage(botResponse, 'bot');
+  } catch (error) {
+    console.error('Error processing message:', error);
+    addMessage("Sorry, I couldn't process that. Please try again later.", 'bot');
+  }
+}
+
+sendButton.addEventListener('click', () => processMessage(chatInput.value.trim()));
+chatInput.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') processMessage(chatInput.value.trim());
+});
+</script>
+
+</body>
+</html>
